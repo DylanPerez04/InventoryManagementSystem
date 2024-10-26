@@ -108,4 +108,8 @@ public class InventoryItem {
         return true;
     }
 
+    @Override
+    public String toString() {
+        return product.getName() + " | " + product.getManufacturer() + " | " + product.getCategory() + " | $" + getSalesPrice();
+    }
 }

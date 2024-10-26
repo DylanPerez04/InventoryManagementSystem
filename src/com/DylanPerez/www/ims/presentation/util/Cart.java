@@ -47,6 +47,22 @@ public class Cart {
         return true;
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public Map<String, Integer> getProducts() {
+        return products;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public CartType getType() {
+        return type;
+    }
+
     public void printSalesSlip(TreeSet<InventoryItem> inventory) {
         System.out.println("-----------------  Sales Slip -----------------");
         System.out.println("------------------------------------------------");
