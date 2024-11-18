@@ -1,17 +1,18 @@
 package com.DylanPerez.www.ims.presentation.util;
 
 import com.DylanPerez.www.ims.application.itemtype.InventoryItem;
+import com.DylanPerez.www.ims.application.itemtype.Product;
+import com.DylanPerez.www.ims.presentation.Store;
 
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeSet;
 
-public class Cart {
+public class Cart implements Comparable<Cart> {
 
     public enum CartType {
         PHYSICAL,
-        VIRTUAL;
+        VIRTUAL
     }
 
     private String id;
@@ -19,32 +20,61 @@ public class Cart {
     private LocalDate date;
     private CartType type;
 
-    public Cart(String id, CartType type) {
+    private Store store;
+    private boolean withdrawn;
+
+    public Cart(String id, CartType type, Store store) {
         this.id = id;
         this.type = type;
+        this.store = store;
         date = LocalDate.now();
         products = new HashMap<>();
+        withdrawn = false;
     }
 
-    // TODO: Update InventoryItem#qtyReserved when adding and removing items from cart
+    public boolean addItem(String sku, int quantity) {
+        final boolean debug = true;
 
-    public boolean addItem(String productSku, int quantity) {
         if(quantity <= 0) return false;
-        products.merge(productSku, quantity, (k, v) -> v + quantity);
-        return true;
+        InventoryItem item = store.searchItem(sku);
+        if(item != null && item.isForSale()) {
+            products.merge(sku, quantity, (k, v) -> v + quantity);
+            item.reserveItem(quantity);
+
+            if(debug) {
+                System.out.println("Cart#addItem() :");
+                store.listInventory();
+            }
+
+            return true;
+        }
+        return false;
     }
 
-    public boolean removeItem(String productSku, int quantity) {
-        if(quantity <= 0 || !products.containsKey(productSku)) return false;
-        Integer actualQty = products.get(productSku);
+    public boolean removeItem(String sku, int quantity) {
+        final boolean debug = true;
+        if(quantity <= 0 || !products.containsKey(sku)) return false;
+        Integer actualQty = products.get(sku);
+        InventoryItem item = store.searchItem(sku);
         
         if(actualQty - quantity <= 0) {
-            products.remove(productSku);
+            products.remove(sku);
+            item.releaseItem(actualQty);
         } else {
-            products.compute(productSku, (k, v) -> v - quantity);
+            products.compute(sku, (k, v) -> v - quantity);
+            item.releaseItem(quantity);
+        }
+
+        if(debug) {
+            System.out.println("Cart#removeItem() :");
+            store.listInventory();
         }
         
         return true;
+    }
+
+    public boolean isEmpty() {
+        return products.isEmpty();
     }
 
     public String getId() {
@@ -63,9 +93,27 @@ public class Cart {
         return type;
     }
 
-    public void printSalesSlip(TreeSet<InventoryItem> inventory) {
-        System.out.println("-----------------  Sales Slip -----------------");
-        System.out.println("------------------------------------------------");
+    public boolean isWithdrawn() {
+        return withdrawn;
     }
 
+    public void setWithdrawn(boolean withdrawn) {
+        this.withdrawn = withdrawn;
+    }
+
+    public void printSalesSlip() {
+        System.out.println("-----------------  Sales Slip -----------------");
+        products.forEach((k, v) -> {
+            InventoryItem item = store.searchItem(k);
+            Product p = item.getProduct();
+            System.out.println("* [" + v + "] " + p.getName() + " by " + p.getManufacturer() + " | " + v + " x " + item.getSalesPrice() + "(" + v * item.getSalesPrice() + ")");
+        });
+        System.out.println("------------------------------------------------");
+        products.clear();
+    }
+
+    @Override
+    public int compareTo(Cart o) {
+        return id.compareTo(o.id);
+    }
 }
