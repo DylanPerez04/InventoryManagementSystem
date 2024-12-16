@@ -1,8 +1,9 @@
 package com.DylanPerez.www.ims.presentation.util;
 
-import com.DylanPerez.www.ims.application.itemtype.InventoryItem;
-import com.DylanPerez.www.ims.application.itemtype.Product;
-import com.DylanPerez.www.ims.presentation.Store;
+import com.DylanPerez.www.ims.application.inventory.interfaces.inventory.InventoryAccessor;
+import com.DylanPerez.www.ims.application.inventory.proxy.InventoryProxy;
+import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemAccessor;
+import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemUpdater;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -10,67 +11,68 @@ import java.util.Map;
 
 public class Cart implements Comparable<Cart> {
 
-    public enum CartType {
-        PHYSICAL,
-        VIRTUAL
-    }
+    private final String id;
+    private final Map<String, Integer> products; // SKU string, quantity
+    private final LocalDate date;
 
-    private String id;
-    private Map<String, Integer> products; // SKU string, quantity
-    private LocalDate date;
-    private CartType type;
+    private double total;
 
-    private Store store;
+    /**
+     * A reference to an <code>InventoryAccessor</code> associated with
+     * the active <code>inventory</code> being handled by an <code>IMS</code>
+     * object, allowing real-time interaction with the available stock managed by the
+     * client.
+     */
+    private final InventoryAccessor liveInventory;
+
     private boolean withdrawn;
 
-    public Cart(String id, CartType type, Store store) {
+    public Cart(String id,  InventoryProxy liveInventory) {
         this.id = id;
-        this.type = type;
-        this.store = store;
-        date = LocalDate.now();
-        products = new HashMap<>();
-        withdrawn = false;
+        this.products = new HashMap<>();
+        this.date = LocalDate.now();
+        this.total = 0;
+        this.liveInventory = liveInventory;
+        this.withdrawn = true;
     }
 
-    public boolean addItem(String sku, int quantity) {
+    public int addItem(String sku, int quantity) {
         final boolean debug = true;
 
-        if(quantity <= 0) return false;
-        InventoryItem item = store.searchItem(sku);
-        if(item != null && item.isForSale()) {
-            products.merge(sku, quantity, (k, v) -> v + quantity);
-            item.reserveItem(quantity);
-
-            if(debug) {
-                System.out.println("Cart#addItem() :");
-                store.listInventory();
-            }
-
-            return true;
+        if(quantity <= 0) return 0;
+        InventoryItemUpdater item = liveInventory.get(sku);
+        if(item != null) {
+            int qtyReserved = item.reserveItem(quantity);
+            products.merge(sku, qtyReserved, (k, v) -> v + qtyReserved);
+            total += (products.get(sku) * item.getPrice());
+            return qtyReserved;
         }
-        return false;
+        throw new IllegalArgumentException("Unable to add unknown sku(" + sku + ") to Cart(id = " + id +")");
     }
 
-    public boolean removeItem(String sku, int quantity) {
+    public int removeItem(String sku, int quantity) {
         final boolean debug = true;
-        if(quantity <= 0 || !products.containsKey(sku)) return false;
-        Integer actualQty = products.get(sku);
-        InventoryItem item = store.searchItem(sku);
-        
-        if(actualQty - quantity <= 0) {
+        if(quantity <= 0) return 0;
+        if(!products.containsKey(sku)) throw new IllegalArgumentException("No sku(" + sku + ") in Cart(id = " + id +")");
+
+        InventoryItemUpdater item = liveInventory.get(sku);
+
+        /// Should not happen; checks if there has somehow been an excess quantity of item releases by other carts.
+        if(item.getQtyReserved() < products.get(sku))
+            throw new RuntimeException("Quantity reserved for item(" + item + ") is less than what " +
+                    "has been reserved by Cart(" + id + ").");
+
+        int toRemove;
+        if(quantity >= products.get(sku)) { ///< If attempting to remove more of item than in cart
+            toRemove = products.get(sku);
             products.remove(sku);
-            item.releaseItem(actualQty);
         } else {
-            products.compute(sku, (k, v) -> v - quantity);
-            item.releaseItem(quantity);
+            toRemove = quantity;
+            /// Will always be present (we literally check for it at the start of the method)
+            products.computeIfPresent(sku, (k, v) -> v - toRemove);
         }
-
-        if(debug) {
-            System.out.println("Cart#removeItem() :");
-            store.listInventory();
-        }
-        
-        return true;
+        total -= (toRemove * item.getPrice());
+        return item.releaseItem(toRemove);
     }
 
     public boolean isEmpty() {
@@ -89,10 +91,6 @@ public class Cart implements Comparable<Cart> {
         return date;
     }
 
-    public CartType getType() {
-        return type;
-    }
-
     public boolean isWithdrawn() {
         return withdrawn;
     }
@@ -104,9 +102,8 @@ public class Cart implements Comparable<Cart> {
     public void printSalesSlip() {
         System.out.println("-----------------  Sales Slip -----------------");
         products.forEach((k, v) -> {
-            InventoryItem item = store.searchItem(k);
-            Product p = item.getProduct();
-            System.out.println("* [" + v + "] " + p.getName() + " by " + p.getManufacturer() + " | " + v + " x " + item.getSalesPrice() + "(" + v * item.getSalesPrice() + ")");
+            InventoryItemAccessor item = liveInventory.get(k);
+            System.out.println("* [" + v + "] " + item.getName() + " by " + item.getManufacturer() + " | " + v + " x " + item.getPrice() + "(" + v * item.getPrice() + ")");
         });
         System.out.println("------------------------------------------------");
         products.clear();

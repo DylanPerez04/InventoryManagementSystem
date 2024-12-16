@@ -2,11 +2,14 @@ package com.DylanPerez.www.ims.application.itemtype;
 
 // TODO: Have products be pulled and listed from a database (file) to maintain changes.
 
+import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.DylanPerez.www.ims.application.util.Category;
 
 import java.util.Map;
 
-public class Product implements Comparable<Product> {
+public abstract class Product {
+
+    // TODO : Add setter methods; check if there is already a product with a particular sku; update the way I make SKU
 
     private static final char[] invalid_chars = {'0', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '=', '\\', '/', '.', ',', '`', '~', '|', '?', '>', '<', ':', ';', '}', '{', '[', ']', '\'', '\"'};
 
@@ -19,25 +22,32 @@ public class Product implements Comparable<Product> {
     private String manufacturer;
     private Category category;
 
-    public Product(String name, String manufacturer, Category category) {
+    /**
+     * The price the <code>Product</code> was bought for by the client from the <code>Product</code>'s
+     * wholesaler.
+     */
+    private double cost;
+
+    /**
+     * The price the <code>Product</code>> is selling for on the client's business' listing.
+     */
+    private double price;
+
+    public Product(String name, String manufacturer, Category category, double cost, double price) {
         this.name = name;
         this.manufacturer = manufacturer;
         this.category = category;
+
+        this.cost = cost;
+        this.price = price;
 
         this.sku = generateSku();
-    }
-
-    public Product(String sku, String name, String manufacturer, Category category) {
-        this.sku = sku;
-        this.name = name;
-        this.manufacturer = manufacturer;
-        this.category = category;
     }
 
     private String generateSku() {
 
         StringBuilder sku = new StringBuilder();
-        sku.append(String.format("%02X", category.ordinal()).replaceAll("0", "Z"));
+        sku.append(String.format("%02X", category.ordinal() + 1).replaceAll("0", "Z"));
 
         String noSpaceMan = manufacturer.replaceAll(" ", "");
         if(noSpaceMan.length() >= 3) {
@@ -62,12 +72,12 @@ public class Product implements Comparable<Product> {
     }
 
     /**
-     * Updates the sku of the product.
-     * #param newSku must be between 7-10 characters long, and contain no special characters,
+     * Updates the <code>sku</code>> of this <code>Product</code>.
+     * <code>newSku</code> must be between 7-10 characters long, and contain no special characters,
      * or zeroes, all to maintain compatibility with third-party software.
      *
      * @param newSku A 7-10 character long sku.
-     * @returns Whether the sku has been successfully updated.
+     * @return Whether the sku has been successfully updated.
      */
     public boolean updateSku(String newSku, Map<String, InventoryItem> inventory) {
         if(newSku.length() < 7 || newSku.length() > 10) return false;
@@ -79,6 +89,10 @@ public class Product implements Comparable<Product> {
 
         this.sku = newSku;
         return true;
+    }
+
+    public void restoreSku() {
+        this.sku = generateSku();
     }
 
     public String getSku() {
@@ -97,26 +111,29 @@ public class Product implements Comparable<Product> {
         return category;
     }
 
-    @Override
-    public String toString() {
-        return getName() + " | " + getManufacturer() + " | " + getCategory();
+    public double getPrice() {
+        return price;
+    }
+
+    protected boolean setPrice(double price) {
+        if(price < 0) return false;
+        this.price = price;
+        return true;
+    }
+
+    protected double getCost() {
+        return cost;
+    }
+
+    protected boolean setCost(double cost) {
+        if(cost < 0) return false;
+        this.cost = cost;
+        return true;
     }
 
     @Override
     public boolean equals(Object obj) {
         if(super.equals(obj)) return true;
         return this.sku.equals(((Product) obj).sku);
-    }
-
-    @Override
-    public int compareTo(Product o) {
-        if(name.equals(o.getName())) {
-            if(manufacturer.equals(o.getManufacturer())) {
-                if(category == o.getCategory()) return 0;
-                return Integer.compare(category.ordinal(), o.getCategory().ordinal());
-            }
-            return manufacturer.compareTo(o.getManufacturer());
-        }
-        return name.toUpperCase().compareTo(o.getName().toUpperCase());
     }
 }
