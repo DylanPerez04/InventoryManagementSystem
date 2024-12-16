@@ -126,8 +126,11 @@ public class Inventory implements InventoryAccessor {
         autoRestock = autoRestocks;
         inventoryMaps = new EnumMap<>(InventoryItem.Comparator.class);
 
+        if(autoRestocks)
+            restock();
+
         for(InventoryItem.Comparator c : InventoryItem.Comparator.values()) {
-            inventoryMaps.put(c, new TreeSet<>(c.get().thenComparing(InventoryItem::hashCode)));
+            inventoryMaps.put(c, new TreeSet<>(c.get().thenComparing(InventoryItem::getSku)));
             inventoryMaps.get(c).addAll(inventory.values());
         }
 
