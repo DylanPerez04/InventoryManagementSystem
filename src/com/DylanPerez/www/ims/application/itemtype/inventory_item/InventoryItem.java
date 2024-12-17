@@ -6,41 +6,9 @@ import com.DylanPerez.www.ims.application.util.Category;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.function.Supplier;
+import java.util.Comparator;
 
 public class InventoryItem extends Product implements InventoryItemUpdater {
-    
-    public enum Comparator implements Supplier<java.util.Comparator<InventoryItem>> {
-        SKU,
-        NAME,
-        MANUFACTURER,
-        CATEGORY,
-        COST,
-        PRICE,
-        QTY_TOTAL,
-        QTY_RESERVED,
-        QTY_LOW,
-        QTY_REORDER,
-        AUTO_RESTOCK,
-        FOR_SALE;
-
-        public java.util.Comparator<InventoryItem> get() {
-            return switch (this) {
-                case SKU -> java.util.Comparator.comparing(InventoryItem::getSku);
-                case NAME -> java.util.Comparator.comparing(InventoryItem::getName);
-                case MANUFACTURER -> java.util.Comparator.comparing(InventoryItem::getManufacturer);
-                case CATEGORY -> java.util.Comparator.comparing(InventoryItem::getCategory);
-                case COST -> java.util.Comparator.comparing(InventoryItem::getCost);
-                case PRICE -> java.util.Comparator.comparing(InventoryItem::getPrice);
-                case QTY_TOTAL ->java.util.Comparator.comparing(InventoryItem::getQtyTotal);
-                case QTY_RESERVED -> java.util.Comparator.comparing(InventoryItem::getQtyReserved);
-                case QTY_LOW -> java.util.Comparator.comparing(InventoryItem::getQtyLow);
-                case QTY_REORDER -> java.util.Comparator.comparing(InventoryItem::getQtyReorder);
-                case AUTO_RESTOCK -> java.util.Comparator.comparing(InventoryItem::hasAutomaticRestocks);
-                case FOR_SALE -> java.util.Comparator.comparing(InventoryItem::isForSale);
-            };
-        }
-    }
 
     /**
      * The quantity of this <code>InventoryItem</code> currently in the
@@ -87,18 +55,18 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
 
     public InventoryItem(InventoryItem toCopy) {
         this(toCopy.getName(), toCopy.getManufacturer(), toCopy.getCategory(),
-                toCopy.getCost(), toCopy.getPrice(), toCopy.qtyTotal, toCopy.qtyLow, toCopy.qtyReorder,
+                toCopy.getCost(), toCopy.getPrice(), toCopy.qtyTotal, toCopy.qtyReserved, toCopy.qtyLow, toCopy.qtyReorder,
                 toCopy.forSale, toCopy.autoRestock);
     }
 
     public InventoryItem(String name, String manufacturer, Category category,
                           double cost, double price) {
-        this(name, manufacturer, category, cost, price, 0, 0, 0, false, false);
+        this(name, manufacturer, category, cost, price,0, 0, 0, 0, false, false);
     }
 
     public InventoryItem(String name, String manufacturer, Category category,
                          double cost, double price, int qtyTotal, int qtyLow, int qtyReorder) {
-        this(name, manufacturer, category, cost, price, qtyTotal, qtyLow, qtyReorder, true, false);
+        this(name, manufacturer, category, cost, price, qtyTotal, 0, qtyLow, qtyReorder, true, false);
     }
 
     @JsonCreator
@@ -109,6 +77,7 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
             @JsonProperty("cost") double cost,
             @JsonProperty("price") double price,
             @JsonProperty("qtyTotal") int qtyTotal,
+            @JsonProperty("qtyReserved") int qtyReserved,
             @JsonProperty("qtyLow") int qtyLow,
             @JsonProperty("qtyReorder") int qtyReorder,
             @JsonProperty("forSale") boolean forSale,
@@ -120,6 +89,28 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
         this.qtyReorder = qtyReorder;
         this.forSale = forSale;
         this.autoRestock = autoRestock;
+    }
+
+    public static Comparator<InventoryItem> getFieldComparator(String fieldName) {
+        if(fieldName == null || fieldName.isEmpty()) return null;
+
+        Comparator<InventoryItem> comparator = switch(fieldName) {
+            case "sku" -> java.util.Comparator.comparing(InventoryItem::getSku);
+            case "name" -> java.util.Comparator.comparing(InventoryItem::getName);
+            case "manufacturer" -> java.util.Comparator.comparing(InventoryItem::getManufacturer);
+            case "category" -> java.util.Comparator.comparing(InventoryItem::getCategory);
+            case "cost" -> java.util.Comparator.comparing(InventoryItem::getCost);
+            case "price" -> java.util.Comparator.comparing(InventoryItem::getPrice);
+            case "qtyTotal" ->java.util.Comparator.comparing(InventoryItem::getQtyTotal);
+            case "qtyReserved" -> java.util.Comparator.comparing(InventoryItem::getQtyReserved);
+            case "qtyLow" -> java.util.Comparator.comparing(InventoryItem::getQtyLow);
+            case "qtyReorder" -> java.util.Comparator.comparing(InventoryItem::getQtyReorder);
+            case "autoRestock" -> java.util.Comparator.comparing(InventoryItem::hasAutomaticRestocks);
+            case "forSale" -> java.util.Comparator.comparing(InventoryItem::isForSale);
+            default -> null;
+        };
+
+        return comparator;
     }
 
     @Override

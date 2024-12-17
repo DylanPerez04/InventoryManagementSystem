@@ -8,6 +8,7 @@ import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.Inv
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.proxy.InventoryItemProxy;
 import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -101,7 +102,7 @@ public class Inventory implements InventoryAccessor {
      */
     private NavigableSet<InventoryItem> adminView;
 
-    private final Map<InventoryItem.Comparator, NavigableSet<InventoryItem>> inventoryMaps;
+    private final Map<String, NavigableMap<String, Set<InventoryItem>>> inventoryMaps; ///< Map<field name, NMap<field value, Set<InvItems>>
 
     private boolean autoRestock;
 
@@ -113,28 +114,61 @@ public class Inventory implements InventoryAccessor {
     private Analytics<String, Integer> saleAnalytics;
 
     public Inventory(File inventoryData, boolean autoRestocks) throws IOException {
-        inventory = new HashMap<>();
-
         // TODO : Check that the file passed in is .json
-        ObjectMapper mapper = new ObjectMapper();
-        Set<InventoryItem> jsonInventory = mapper.readValue(inventoryData,
-                new TypeReference<Set<InventoryItem>>() {});
-        for(InventoryItem it : jsonInventory)
-            inventory.put(it.getSku(), it);
+        inventory = new HashMap<>();
+        inventoryMaps = new LinkedHashMap<>();
         saleAnalytics = new SaleAnalytics(inventory.keySet());
 
-        autoRestock = autoRestocks;
-        inventoryMaps = new EnumMap<>(InventoryItem.Comparator.class);
+//        Set<InventoryItem> jsonInventory = jsonMapper.readValue(inventoryData,
+//                new TypeReference<Set<InventoryItem>>() {});
+//        for(InventoryItem it : jsonInventory)
+//            inventory.put(it.getSku(), it);
 
+        autoRestock = autoRestocks;
         if(autoRestocks)
             restock();
 
-        for(InventoryItem.Comparator c : InventoryItem.Comparator.values()) {
-            inventoryMaps.put(c, new TreeSet<>(c.get().thenComparing(InventoryItem::getSku)));
-            inventoryMaps.get(c).addAll(inventory.values());
-        }
+        // TODO : Make changes to InventoryItem be reflected on database
 
-        adminView = inventoryMaps.get(InventoryItem.Comparator.SKU);
+        inventoryMaps.put("sku", new TreeMap<>());
+
+        ObjectMapper jsonMapper = new ObjectMapper();
+        Set<JsonNode> inventoryItemObjects = jsonMapper.readValue(inventoryData,
+                new TypeReference<Set<JsonNode>>() {});
+
+        inventoryItemObjects.forEach(object -> {
+            InventoryItem objectAsInventoryItem = jsonMapper.convertValue(object, InventoryItem.class);
+            if(objectAsInventoryItem.hasAutomaticRestocks())
+                objectAsInventoryItem.placeInventoryOrder();
+            Iterator<String> objectFields = object.fieldNames();
+            while(objectFields.hasNext()) {
+                String fieldName = objectFields.next();
+                System.out.println("Initializing inventoryMaps : Looking at field = " + fieldName);
+
+                inventoryMaps.put(fieldName, new TreeMap<>());
+                inventoryMaps.get(fieldName).compute(object.get(fieldName).asText(), (k, v) -> {
+                    System.out.println("fieldName read = " + k);
+                    if(v == null)
+                        v = new HashSet<>();
+
+                    v.add(objectAsInventoryItem);
+                    return v;
+                });
+                inventoryMaps.get(fieldName).forEach((fValue, itemSet) -> {
+                    itemSet.forEach((inventoryItem -> {
+                        inventoryMaps.get("sku").compute(inventoryItem.getSku(), (itemSku, skuItemSet) -> {
+                            if(skuItemSet == null)
+                                skuItemSet = new HashSet<>();
+                            skuItemSet.add(inventoryItem);
+                            return skuItemSet;
+                        });
+                    }));
+                });
+            }
+        });
+
+        adminView = null;
+        updateAdminView("sku");
     }
 
     @Override
@@ -151,12 +185,11 @@ public class Inventory implements InventoryAccessor {
 
     public void outputAdminView() {
         System.out.println("=== Store Inventory ==================\n");
-        InventoryItem.Comparator[] data = InventoryItem.Comparator.values();
         StringBuilder sb = new StringBuilder();
-        for(InventoryItem.Comparator cell : data)
-            sb.append(String.format("%18s", cell.toString())).append(" |");
+        for(var cell : inventoryMaps.keySet())
+            sb.append(String.format("%18s", cell)).append(" |");
         sb.append('\n');
-        for(InventoryItem.Comparator cell : data)
+        for(var cell : inventoryMaps.keySet())
             sb.append(String.format("%18s", "").replace(' ', '-')).append(" |");
 
         System.out.println(sb);
@@ -178,32 +211,38 @@ public class Inventory implements InventoryAccessor {
      *     <code>sku</code>.
      * </p>
      */
-    public void updateAdminView(InventoryItem.Comparator comparator) {
-        if(comparator != null)
-            adminView = inventoryMaps.get(comparator);
-    }
+    public void updateAdminView(String fieldName) {
+        if(fieldName != null && !fieldName.isEmpty()) {
+            if(adminView != null) adminView.clear();
+            else adminView = new TreeSet<>(InventoryItem.getFieldComparator(fieldName));
 
-    public void updateAdminView(List<InventoryItem.Comparator> comparators) {
-        if(comparators == null) throw new NullPointerException();
-        if(comparators.size() == 0) return;
-
-        if(comparators.size() > 1) {
-            ArrayList<Comparator<InventoryItem>> input = new ArrayList<>();
-            for(int i = 0; i < comparators.size(); i++)
-                input.add(comparators.get(i).get());
-
-            Comparator<InventoryItem> outputComparator = input.getFirst();
-            for(int i = 1; i < comparators.size(); i++)
-                outputComparator = outputComparator.thenComparing(input.get(i));
-
-            var customAdminView = new TreeSet<>(outputComparator);
-            customAdminView.addAll(adminView);
-            adminView = customAdminView;
-
-            return;
+            inventoryMaps.get(fieldName).forEach((k, v) -> {
+                adminView.addAll(v);
+            });
         }
-        adminView = inventoryMaps.get(comparators.getFirst());
     }
+
+//    public void updateAdminView(List<InventoryItem.Comparator> comparators) {
+//        if(comparators == null) throw new NullPointerException();
+//        if(comparators.size() == 0) return;
+//
+//        if(comparators.size() > 1) {
+//            ArrayList<Comparator<InventoryItem>> input = new ArrayList<>();
+//            for(int i = 0; i < comparators.size(); i++)
+//                input.add(comparators.get(i).get());
+//
+//            Comparator<InventoryItem> outputComparator = input.getFirst();
+//            for(int i = 1; i < comparators.size(); i++)
+//                outputComparator = outputComparator.thenComparing(input.get(i));
+//
+//            var customAdminView = new TreeSet<>(outputComparator);
+//            customAdminView.addAll(adminView);
+//            adminView = customAdminView;
+//
+//            return;
+//        }
+//        adminView = inventoryMaps.get(comparators.getFirst());
+//    }
 
 //    /**
 //     * <p>

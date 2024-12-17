@@ -2,14 +2,15 @@ package com.DylanPerez.www.ims.presentation;
 
 import com.DylanPerez.www.ims.application.inventory.Inventory;
 import com.DylanPerez.www.ims.application.inventory.proxy.InventoryProxy;
-import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemAccessor;
 import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.DylanPerez.www.ims.service.simulate.Simulatable;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 
 /**
  * IMS is the base class for all Inventory Management System queries used by a client to facilitate
@@ -52,13 +53,13 @@ public class IMS implements Simulatable, Runnable {
         return inventory.get(sku);
     }
 
-    private void outputAdminView(InventoryItem.Comparator comparator) {
-        inventory.updateAdminView(comparator);
+    private void outputAdminView(String fieldName) {
+        inventory.updateAdminView(fieldName);
     }
 
-    private void outputAdminView(List<InventoryItem.Comparator> comparator) {
-        inventory.updateAdminView(comparator);
-    }
+//    private void outputAdminView(List<InventoryItem.Comparator> comparator) {
+//        inventory.updateAdminView(comparator);
+//    }
 
     private void restockInventory() {
         inventory.restock();
@@ -135,43 +136,49 @@ public class IMS implements Simulatable, Runnable {
     }
 
 
-    private void customizeOutput(Scanner scanner) {
-        final String[] options = {
-                "Customize Inventory Output",
-                "Search For Item",
-                "Update Inventory",
-                "View Analytics",
-                "Exit"
-        };
+//    private void customizeOutput(Scanner scanner) {
+//        String buffer;
+//        List<InventoryItem.Comparator> comparators = new ArrayList<>();
+//        boolean askedInitial = false;
+//
+//        while(true) { ///< Bad practice but IntelliJ compiler advised this over redundant boolean variable
+//            if(!askedInitial)
+//                System.out.print("[?] Sort by (enter Exit to go back) : ");
+//            else
+//                System.out.print("[?] And by (enter Exit to go back) : ");
+//            buffer = scanner.nextLine();
+//
+//            if(buffer.equalsIgnoreCase("exit")) {
+//                inventory.updateAdminView(comparators);
+//                break;
+//            }
+//
+//            try {
+//                comparators.add(InventoryItem.Comparator.valueOf(buffer.toUpperCase().replace(' ', '_')));
+//            } catch(IllegalArgumentException e) {
+//                System.out.println("[!] Unknown InventoryItem field: " + buffer);
+//            }
+//            askedInitial = true;
+//        }
+//    }
 
-        String buffer;
-        List<InventoryItem.Comparator> comparators = new ArrayList<>();
-        boolean askedInitial = false;
-
-        while(true) { ///< Bad practice but IntelliJ compiler advised this over redundant boolean variable
-            if(!askedInitial)
-                System.out.print("[?] Sort by (enter Exit to go back) : ");
-            else
-                System.out.print("[?] And by (enter Exit to go back) : ");
-            buffer = scanner.nextLine();
-
-            if(buffer.equalsIgnoreCase("exit")) {
-                inventory.updateAdminView(comparators);
-                break;
-            }
-
-            try {
-                comparators.add(InventoryItem.Comparator.valueOf(buffer.toUpperCase()));
-            } catch(IllegalArgumentException e) {
-                System.out.println("[!] Unknown InventoryItem field: " + buffer);
-            }
-            askedInitial = true;
-        }
-    }
-
-    private void searchForItem(Scanner scanner) {
-
-    }
+//    private void searchForItem(Scanner scanner) {
+//
+//        InventoryItem.Comparator invMapsKey = null;
+//        String buffer;
+//        boolean endProgram = false;
+//
+//        while(!endProgram) {
+//            System.out.print("[?] Search by : ");
+//            buffer = scanner.nextLine();
+//            try {
+//                invMapsKey = InventoryItem.Comparator.valueOf(buffer.toUpperCase().replace(' ', '_'));
+//                endProgram = true;
+//            } catch(IllegalArgumentException e) {
+//                System.out.println("[!] Unknown InventoryItem field: " + buffer);
+//            }
+//        }
+//    }
 
     private void updateInventory(Scanner scanner) {
 
@@ -206,13 +213,13 @@ public class IMS implements Simulatable, Runnable {
             System.out.print("> ");
             buffer = scanner.nextLine();
 
-            switch (Integer.parseInt(buffer)) {
-                case 1 -> customizeOutput(scanner);
-                case 2 -> searchForItem(scanner);
-                case 3 -> updateInventory(scanner);
-                case 4 -> viewAnalytics(scanner);
-                default -> endProgram = true;
-            }
+//            switch (Integer.parseInt(buffer)) {
+//                case 1 -> customizeOutput(scanner);
+//                case 2 -> searchForItem(scanner);
+//                case 3 -> updateInventory(scanner);
+//                case 4 -> viewAnalytics(scanner);
+//                default -> endProgram = true;
+//            }
         }
     }
 

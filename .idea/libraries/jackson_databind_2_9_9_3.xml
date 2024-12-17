@@ -5,7 +5,9 @@
       <root url="jar://$USER_HOME$/Downloads/jackson-core-2.9.9.jar!/" />
       <root url="jar://$USER_HOME$/Downloads/jackson-annotations-2.9.9.jar!/" />
     </CLASSES>
-    <JAVADOC />
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/Downloads/jackson-databind-2.18.2-javadoc.jar!/" />
+    </JAVADOC>
     <SOURCES />
   </library>
 </component>
