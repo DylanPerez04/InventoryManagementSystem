@@ -52,19 +52,6 @@
     "autoRestock" : true
   },
   {
-    "name": "Toaster",
-    "manufacturer": "BrightLights",
-    "category": "SHOPPING",
-    "cost": 11.46,
-    "price": 15.99,
-    "qtyTotal": 0,
-    "qtyReserved":  0,
-    "qtyLow": 10,
-    "qtyReorder": 18,
-    "forSale": true,
-    "autoRestock" : true
-  },
-  {
     "name": "Couch",
     "manufacturer": "GameSport",
     "category": "SHOPPING",
@@ -403,19 +390,6 @@
     "autoRestock" : true
   },
   {
-    "name": "Shampoo",
-    "manufacturer": "GameSport",
-    "category": "CONVENIENCE",
-    "cost": 169.57,
-    "price": 216.21,
-    "qtyTotal": 0,
-    "qtyReserved":  0,
-    "qtyLow": 5,
-    "qtyReorder": 9,
-    "forSale": false,
-    "autoRestock" : true
-  },
-  {
     "name": "Laptop",
     "manufacturer": "HomePro",
     "category": "SHOPPING",
@@ -426,19 +400,6 @@
     "qtyLow": 4,
     "qtyReorder": 14,
     "forSale": true,
-    "autoRestock" : true
-  },
-  {
-    "name": "T-Shirt",
-    "manufacturer": "StyleWear",
-    "category": "SPECIALTY",
-    "cost": 75.86,
-    "price": 95.44,
-    "qtyTotal": 0,
-    "qtyReserved":  0,
-    "qtyLow": 8,
-    "qtyReorder": 17,
-    "forSale": false,
     "autoRestock" : true
   },
   {
@@ -633,19 +594,6 @@
     "qtyReserved":  0,
     "qtyLow": 7,
     "qtyReorder": 16,
-    "forSale": false,
-    "autoRestock" : true
-  },
-  {
-    "name": "Lamp",
-    "manufacturer": "PaperMate",
-    "category": "CONVENIENCE",
-    "cost": 183.19,
-    "price": 256.34,
-    "qtyTotal": 0,
-    "qtyReserved":  0,
-    "qtyLow": 4,
-    "qtyReorder": 13,
     "forSale": false,
     "autoRestock" : true
   },

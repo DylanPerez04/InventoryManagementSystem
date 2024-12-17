@@ -235,7 +235,7 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
     public String toString() {
         String[] data = {"[" + getSku() + "]", getName(), getManufacturer(), getCategory().toString(),
                 "$" + getCost(), "$" + getPrice(),  Integer.toString(qtyTotal), Integer.toString(qtyReserved),
-                Integer.toString(qtyLow),Integer.toString(qtyReorder), Boolean.toString(autoRestock), Boolean.toString(forSale)};
+                Integer.toString(qtyLow),Integer.toString(qtyReorder), Boolean.toString(forSale), Boolean.toString(autoRestock)};
         StringBuilder sb = new StringBuilder();
         for(String cell : data)
             sb.append(String.format("%18s", cell)).append(" |");

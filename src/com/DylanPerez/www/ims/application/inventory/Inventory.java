@@ -140,31 +140,39 @@ public class Inventory implements InventoryAccessor {
             InventoryItem objectAsInventoryItem = jsonMapper.convertValue(object, InventoryItem.class);
             if(objectAsInventoryItem.hasAutomaticRestocks())
                 objectAsInventoryItem.placeInventoryOrder();
+
             Iterator<String> objectFields = object.fieldNames();
             while(objectFields.hasNext()) {
                 String fieldName = objectFields.next();
-                System.out.println("Initializing inventoryMaps : Looking at field = " + fieldName);
+//                System.out.println("Initializing inventoryMaps : Looking at field = " + fieldName);
 
-                inventoryMaps.put(fieldName, new TreeMap<>());
+                inventoryMaps.computeIfAbsent(fieldName, fName -> new TreeMap<>());
                 inventoryMaps.get(fieldName).compute(object.get(fieldName).asText(), (k, v) -> {
-                    System.out.println("fieldName read = " + k);
+//                    System.out.println("fieldName read = " + k);
                     if(v == null)
                         v = new HashSet<>();
 
                     v.add(objectAsInventoryItem);
                     return v;
                 });
-                inventoryMaps.get(fieldName).forEach((fValue, itemSet) -> {
-                    itemSet.forEach((inventoryItem -> {
-                        inventoryMaps.get("sku").compute(inventoryItem.getSku(), (itemSku, skuItemSet) -> {
-                            if(skuItemSet == null)
-                                skuItemSet = new HashSet<>();
-                            skuItemSet.add(inventoryItem);
-                            return skuItemSet;
-                        });
-                    }));
-                });
             }
+        });
+
+        /// Uses single pre-existing TreeMap with name of permanent field to manually populate sku TreeMap
+        inventoryMaps.get("name").forEach((fValue, itemSet) -> {
+            itemSet.forEach((inventoryItem -> {
+
+                if(inventoryMaps.get("sku").containsKey(inventoryItem.getSku()))
+                    throw new RuntimeException("InventoryItem with duplicate sku!\n " +
+                            "Current - " + inventoryMaps.get("sku").get(inventoryItem.getSku()).toString() + "\n Duplicate - " + inventoryItem);
+
+                inventoryMaps.get("sku").compute(inventoryItem.getSku(), (itemSku, skuItemSet) -> {
+                    if(skuItemSet == null)
+                        skuItemSet = new HashSet<>();
+                    skuItemSet.add(inventoryItem);
+                    return skuItemSet;
+                });
+            }));
         });
 
         adminView = null;
