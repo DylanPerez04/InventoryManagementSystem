@@ -41,7 +41,7 @@ public class Main {
 
     private static boolean testAdmin() throws IOException {
         File inventoryData = new File("src/resources/inventory.json");
-        IMS ims = new IMS(inventoryData);
+        IMS ims = new IMS();
         ims.run();
         return true;
     }

@@ -43,6 +43,10 @@ public class IMS implements Simulatable, Runnable {
      */
     private Map<String, Cart> carts; // HashMap<type, HashMap<cartId, cart>>
 
+    public IMS() {
+        inventory = new Inventory();
+        carts = new HashMap<>();
+    }
 
     public IMS(File database) throws IOException {
         inventory = new Inventory(database);

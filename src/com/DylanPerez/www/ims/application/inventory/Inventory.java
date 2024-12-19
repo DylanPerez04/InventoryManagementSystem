@@ -6,6 +6,7 @@ import com.DylanPerez.www.ims.application.itemtype.Product;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemUpdater;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.proxy.InventoryItemProxy;
+import com.DylanPerez.www.ims.application.util.InventorySerializer;
 import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -121,17 +122,34 @@ public class Inventory implements InventoryAccessor {
 
     private File inventoryData;
 
-    public Inventory(File inventoryData) throws IOException {
-        final boolean debug = false;
+    public Inventory() {
+        final boolean debug = true;
 
-        // TODO : Check that the file passed in is .json
         inventory = new HashMap<>();
         inventoryRecnos = new HashMap<>();
         inventoryMaps = new LinkedHashMap<>();
-        saleAnalytics = new SaleAnalytics(inventory.keySet());
-        this.inventoryData = inventoryData;
+        saleAnalytics = null;
+        inventoryData = new File("src/resources/inventory.json");
+        try {
+            if(debug) System.out.println("Inventory() : Creating new File!");
+            inventoryData.createNewFile();
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+        if(debug) System.out.println("src/resources/inventory.json exists : " + inventoryData.exists());
+        adminView = null;
+    }
 
-        // TODO : Make changes to InventoryItem be reflected on database
+    public Inventory(File inventoryData) throws IOException {
+        this();
+        final boolean debug = true;
+
+        if(!InventorySerializer.isJson(inventoryData)) throw new IllegalArgumentException("Passed in inventoryData is not a json file.");
+
+        if(!inventoryData.equals(this.inventoryData)) {
+            if(debug) System.out.println("Inventory(File) : Creating new File!");
+            this.inventoryData = inventoryData;
+        }
 
         ObjectMapper jsonMapper = new ObjectMapper();
         List<JsonNode> inventoryItemNodes = jsonMapper.readValue(inventoryData,
@@ -155,8 +173,7 @@ public class Inventory implements InventoryAccessor {
             if(debug) System.out.println("Reading item: " + objectAsInventoryItem.getName());
             inventoryRecnos.put(objectAsInventoryItem.getSku(), i);
 
-            /// For debugging and testing purposes (not intended behavior - should not restock after each boot up)
-            if(true) restock(objectAsInventoryItem);
+            if(false) restock(objectAsInventoryItem); ///< For debugging and testing purposes only
 
             Iterator<String> objectFields = object.fieldNames();
             while(objectFields.hasNext()) {
@@ -196,7 +213,6 @@ public class Inventory implements InventoryAccessor {
             }));
         });
 
-        adminView = null;
         updateAdminView("sku");
     }
 
@@ -222,7 +238,7 @@ public class Inventory implements InventoryAccessor {
             sb.append(String.format("%18s", "").replace(' ', '-')).append(" |");
 
         System.out.println(sb);
-        adminView.forEach(System.out::println);
+        if(adminView != null) adminView.forEach(System.out::println);
         System.out.println("\n======================================");
     }
 
@@ -333,22 +349,8 @@ public class Inventory implements InventoryAccessor {
             inventoryGenerator.useDefaultPrettyPrinter();
             inventoryNode.serialize(inventoryGenerator,  mapper.getSerializerProviderInstance());
             inventoryGenerator.close();
-
-//            List<JsonNode> inventoryItemNodes = mapper.readValue(this.inventoryData, new TypeReference<LinkedList<JsonNode>>() {});
-//
-//            ObjectNode node = (ObjectNode) inventoryItemNodes.get(inventoryRecnos.get(item.getSku()));
-//            if(debug) System.out.println("node = " + node.get("name"));
-//            node.replace("qtyTotal", mapper.valueToTree(item.getQtyTotal()));
-//            mapper.writerWithDefaultPrettyPrinter().writeValue(this.inventoryData, inventoryItemNodes);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-//    private void restock(InventoryItem item, int quantity) {
-//        int qtyRestocked = item.placeInventoryOrder(quantity);
-//
-//        /// Update inventory.json
-//        Object
-//    }
 }
