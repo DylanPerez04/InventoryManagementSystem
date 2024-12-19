@@ -44,8 +44,8 @@ public class IMS implements Simulatable, Runnable {
     private Map<String, Cart> carts; // HashMap<type, HashMap<cartId, cart>>
 
 
-    public IMS(File database, boolean autoRestock) throws IOException {
-        inventory = new Inventory(database, autoRestock);
+    public IMS(File database) throws IOException {
+        inventory = new Inventory(database);
         carts = new HashMap<>();
     }
 
@@ -136,31 +136,32 @@ public class IMS implements Simulatable, Runnable {
     }
 
 
-//    private void customizeOutput(Scanner scanner) {
-//        String buffer;
-//        List<InventoryItem.Comparator> comparators = new ArrayList<>();
-//        boolean askedInitial = false;
-//
-//        while(true) { ///< Bad practice but IntelliJ compiler advised this over redundant boolean variable
-//            if(!askedInitial)
-//                System.out.print("[?] Sort by (enter Exit to go back) : ");
-//            else
-//                System.out.print("[?] And by (enter Exit to go back) : ");
-//            buffer = scanner.nextLine();
-//
-//            if(buffer.equalsIgnoreCase("exit")) {
-//                inventory.updateAdminView(comparators);
-//                break;
-//            }
-//
+    private void customizeOutput(Scanner scanner) {
+        String buffer;
+        String fieldName = "sku";
+        boolean askedInitial = false;
+
+        while(true) { ///< Bad practice but IntelliJ compiler advised this over redundant boolean variable
+            if(!askedInitial)
+                System.out.print("[?] Sort by (enter Exit to go back) : ");
+            else
+                System.out.print("[?] And by (enter Exit to go back) : ");
+            buffer = scanner.nextLine();
+
+            if(buffer.equalsIgnoreCase("exit")) {
+                inventory.updateAdminView(fieldName);
+                break;
+            }
+            fieldName = buffer;
+
 //            try {
 //                comparators.add(InventoryItem.Comparator.valueOf(buffer.toUpperCase().replace(' ', '_')));
 //            } catch(IllegalArgumentException e) {
 //                System.out.println("[!] Unknown InventoryItem field: " + buffer);
 //            }
-//            askedInitial = true;
-//        }
-//    }
+            askedInitial = true;
+        }
+    }
 
 //    private void searchForItem(Scanner scanner) {
 //
@@ -213,13 +214,13 @@ public class IMS implements Simulatable, Runnable {
             System.out.print("> ");
             buffer = scanner.nextLine();
 
-//            switch (Integer.parseInt(buffer)) {
-//                case 1 -> customizeOutput(scanner);
+            switch (Integer.parseInt(buffer)) {
+                case 1 -> customizeOutput(scanner);
 //                case 2 -> searchForItem(scanner);
 //                case 3 -> updateInventory(scanner);
 //                case 4 -> viewAnalytics(scanner);
-//                default -> endProgram = true;
-//            }
+                default -> endProgram = true;
+            }
         }
     }
 

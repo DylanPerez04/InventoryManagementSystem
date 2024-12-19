@@ -4,7 +4,6 @@ import com.DylanPerez.www.ims.presentation.IMS;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Scanner;
 
 public class Main {
 
@@ -41,18 +40,9 @@ public class Main {
     }
 
     private static boolean testAdmin() throws IOException {
-        Scanner scanner = new Scanner(System.in);
-        String buffer;
-
-        boolean autoRestocks = false;
-
-        System.out.println("[?] Automatic Restocks (y/n) : ");
-        buffer = scanner.nextLine();
-        autoRestocks = buffer.charAt(0) == 'y';
-
-        IMS ims = new IMS(new File("src/resources/inventory.json"), autoRestocks);
+        File inventoryData = new File("src/resources/inventory.json");
+        IMS ims = new IMS(inventoryData);
         ims.run();
-
         return true;
     }
 

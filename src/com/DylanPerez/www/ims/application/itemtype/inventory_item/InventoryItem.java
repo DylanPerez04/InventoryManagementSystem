@@ -6,8 +6,6 @@ import com.DylanPerez.www.ims.application.util.Category;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Comparator;
-
 public class InventoryItem extends Product implements InventoryItemUpdater {
 
     /**
@@ -91,27 +89,27 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
         this.autoRestock = autoRestock;
     }
 
-    public static Comparator<InventoryItem> getFieldComparator(String fieldName) {
-        if(fieldName == null || fieldName.isEmpty()) return null;
-
-        Comparator<InventoryItem> comparator = switch(fieldName) {
-            case "sku" -> java.util.Comparator.comparing(InventoryItem::getSku);
-            case "name" -> java.util.Comparator.comparing(InventoryItem::getName);
-            case "manufacturer" -> java.util.Comparator.comparing(InventoryItem::getManufacturer);
-            case "category" -> java.util.Comparator.comparing(InventoryItem::getCategory);
-            case "cost" -> java.util.Comparator.comparing(InventoryItem::getCost);
-            case "price" -> java.util.Comparator.comparing(InventoryItem::getPrice);
-            case "qtyTotal" ->java.util.Comparator.comparing(InventoryItem::getQtyTotal);
-            case "qtyReserved" -> java.util.Comparator.comparing(InventoryItem::getQtyReserved);
-            case "qtyLow" -> java.util.Comparator.comparing(InventoryItem::getQtyLow);
-            case "qtyReorder" -> java.util.Comparator.comparing(InventoryItem::getQtyReorder);
-            case "autoRestock" -> java.util.Comparator.comparing(InventoryItem::hasAutomaticRestocks);
-            case "forSale" -> java.util.Comparator.comparing(InventoryItem::isForSale);
-            default -> null;
-        };
-
-        return comparator;
-    }
+//    public static Comparator<InventoryItem> getFieldComparator(String fieldName) {
+//        if(fieldName == null || fieldName.isEmpty()) return null;
+//
+//        Comparator<InventoryItem> comparator = switch(fieldName) {
+//            case "sku" -> java.util.Comparator.comparing(InventoryItem::getSku);
+//            case "name" -> java.util.Comparator.comparing(InventoryItem::getName);
+//            case "manufacturer" -> java.util.Comparator.comparing(InventoryItem::getManufacturer);
+//            case "category" -> java.util.Comparator.comparing(InventoryItem::getCategory);
+//            case "cost" -> java.util.Comparator.comparing(InventoryItem::getCost);
+//            case "price" -> java.util.Comparator.comparing(InventoryItem::getPrice);
+//            case "qtyTotal" ->java.util.Comparator.comparing(InventoryItem::getQtyTotal);
+//            case "qtyReserved" -> java.util.Comparator.comparing(InventoryItem::getQtyReserved);
+//            case "qtyLow" -> java.util.Comparator.comparing(InventoryItem::getQtyLow);
+//            case "qtyReorder" -> java.util.Comparator.comparing(InventoryItem::getQtyReorder);
+//            case "autoRestock" -> java.util.Comparator.comparing(InventoryItem::hasAutomaticRestocks);
+//            case "forSale" -> java.util.Comparator.comparing(InventoryItem::isForSale);
+//            default -> null;
+//        };
+//
+//        return comparator;
+//    }
 
     @Override
     public int reserveItem(int quantity) {
@@ -162,11 +160,15 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
         return qtySold * getPrice();
     }
 
-    public boolean placeInventoryOrder() {
-        if(qtyTotal > qtyLow) return false;
+    public int placeInventoryOrder() {
+        return placeInventoryOrder(qtyReorder);
+    }
 
-        qtyTotal += qtyReorder;
-        return true;
+    public int placeInventoryOrder(int quantity) {
+        if(quantity < 0) return 0;
+
+        qtyTotal += quantity;
+        return quantity;
     }
 
     public boolean setPrice(double price) {
