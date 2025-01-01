@@ -3,9 +3,11 @@ package com.DylanPerez.www.ims.application.util;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 public abstract class IMSUtilities {
     
@@ -48,7 +50,7 @@ public abstract class IMSUtilities {
 //    private static File deserializeResource(File file) {
 //    }
 
-    public static int writeItem(File file, String... itemValues) throws IOException {
+    public static Map.Entry<String, Integer> writeItem(File file, String... itemValues) throws IOException {
         final boolean debug = true;
         if(!file.exists() || !isJson(file)) throw new IllegalArgumentException("File passed cannot be used for serialization. " +
                 "Check that the file exists and is .json.");
@@ -64,7 +66,13 @@ public abstract class IMSUtilities {
                     Boolean.parseBoolean(itemValues[9]), Boolean.parseBoolean(itemValues[10])
             );
 
-        return item.write(file);
+        return Map.entry(item.getSku(), item.write(file));
+    }
+
+    public static InventoryItem readItem(File file, int recno) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode item = (ObjectNode) mapper.readTree(file).get("items").get(recno);
+        return mapper.convertValue(item, InventoryItem.class);
     }
 
     public static boolean clear(File file) {

@@ -61,8 +61,9 @@ public class IMS implements Simulatable, Runnable {
 
         try {
             this.inventory = mapper.readValue(inventoryJson, Inventory.class);
-        } catch (IOException e) {}
-        this.inventory = new Inventory(defaultInventoryJsonPath);
+        } catch (IOException e) {
+            this.inventory = new Inventory(defaultInventoryJsonPath);
+        }
     }
 
     private InventoryItemAccessor search(String sku) {

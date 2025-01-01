@@ -10,11 +10,10 @@ import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.File;
@@ -158,6 +157,8 @@ public class Inventory implements InventoryAccessor {
     public Inventory(String jsonPath) {
         if(!IMSUtilities.isJson(jsonPath)) throw new IllegalArgumentException("Cannot pass non-Json file path to constructor.");
 
+        System.out.println("Calling Inventory(String jsonPath) constructor!");
+
         this.database = IMSUtilities.createResource(jsonPath);
 
         this.fieldMap = new LinkedHashMap<>();
@@ -261,20 +262,16 @@ public class Inventory implements InventoryAccessor {
         return List.copyOf(fieldMap.keySet());
     }
 
-    public boolean addItem(String... itemValues) {
-        int recno = -1;
+    public void addItem(String... itemValues) {
         try {
-            recno = IMSUtilities.writeItem(database, itemValues);
+            // key - InventoryItem SKU
+            // value - Record number
+            var itemRecordEntry = IMSUtilities.writeItem(database, itemValues);
+            inventory.put(itemRecordEntry.getKey(), itemRecordEntry.getValue());
+            addToInventoryMaps(new ObjectMapper(), itemRecordEntry.getValue());
         } catch(IOException e) {
             e.printStackTrace();
         }
-        return recno >= 0;
-    }
-
-    private InventoryItem retrieve(int recno) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode item = (ObjectNode) mapper.readTree(database).get("items").get(recno);
-        return mapper.convertValue(item, InventoryItem.class);
     }
 
     @Override
@@ -414,6 +411,29 @@ public class Inventory implements InventoryAccessor {
 //            throw new RuntimeException(e);
 //        }
 //    }
+
+    private void addToInventoryMaps(ObjectMapper mapper, int recno) throws IOException {
+        final boolean debug = true;
+        ArrayNode jsonArray = (ArrayNode) mapper.readTree(database).get("items");
+        ObjectNode jsonItem = (ObjectNode) jsonArray.get(recno);
+
+        Iterator<String> fieldNames = jsonItem.fieldNames();
+        while(fieldNames.hasNext()) {
+            String itemFieldName = fieldNames.next();
+
+            if(debug) System.out.println("addToInventoryMaps() : itemFieldName = " + itemFieldName);
+
+            inventoryMaps.get(itemFieldName).compute(mapper.convertValue(jsonItem.get(itemFieldName), new TypeReference<>() {}), (k, v) -> {
+                if(v == null)
+                    v = new HashSet<>();
+
+                if(debug) System.out.println("addToInventoryMaps() : itemFieldValue = " + k);
+
+                v.add(recno);
+                return v;
+            });
+        }
+    }
 
     private static Map<String, Integer> initItemFieldNames(Map<String, Integer> fieldMap) {
         if(fieldMap == null) return null;
