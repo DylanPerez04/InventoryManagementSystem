@@ -5,15 +5,16 @@ import com.DylanPerez.www.ims.application.inventory.interfaces.inventory.Invento
 import com.DylanPerez.www.ims.application.itemtype.Product;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemUpdater;
-import com.DylanPerez.www.ims.application.itemtype.inventory_item.proxy.InventoryItemProxy;
-import com.DylanPerez.www.ims.application.util.InventorySerializer;
+import com.DylanPerez.www.ims.application.util.IMSUtilities;
 import com.DylanPerez.www.ims.presentation.util.Cart;
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.BeanDescription;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.File;
@@ -22,7 +23,6 @@ import java.util.*;
 
 public class Inventory implements InventoryAccessor {
 
-    // TODO : Create global field of ObjectMapper (potentially delete field inventoryData)
     // TODO : Update outdated documentation
 
     private static class SaleAnalytics implements Analytics<String, Integer> {
@@ -97,11 +97,13 @@ public class Inventory implements InventoryAccessor {
      * @see Product#getSku()
      * @see InventoryItem
      */
-    private final Map<String, InventoryItem> inventory;
+    private final Map<String, Integer> inventory; // Map<sku, Json array index>
 
-    private final Map<String, Integer> inventoryRecnos;
+    private Map<String, Integer> fieldMap;
 
-    private final Map<String, NavigableMap<Object, Set<InventoryItem>>> inventoryMaps; ///< Map<field name, NMap<field value, Set<InvItems>>
+//    private final Map<String, Integer> inventoryRecnos;
+
+    private final Map<String, NavigableMap<Object, Set<Integer>>> inventoryMaps; ///< Map<field name, NMap<field value, Set<Json array indices>>
 
     /**
      * A <code>Set</code> of all <code>InventoryItem</code>s within <code>inventory</code>
@@ -110,7 +112,7 @@ public class Inventory implements InventoryAccessor {
      * This <code>Set</code> is specifically declared as a means to quickly output all items
      * within <code>inventory</code>.
      */
-    private Set<InventoryItem> adminView;
+    private Set<Integer> adminView;
 
 
     /**
@@ -120,43 +122,72 @@ public class Inventory implements InventoryAccessor {
      */
     private Analytics<String, Integer> saleAnalytics;
 
-    private File inventoryData;
+    private final File database;
 
-    public Inventory() {
+    /// Utilized to deserialize inventory.json into a valid and usable Inventory object
+    @JsonCreator
+    private Inventory(
+            @JsonProperty("itemFieldNames") List<String> itemFieldNames,
+            @JsonProperty("size") int size,
+            @JsonProperty("inventoryJsonPath") String inventoryJsonPath,
+            @JsonProperty("items") List<InventoryItem> items
+    ) {
         final boolean debug = true;
 
-        inventory = new HashMap<>();
-        inventoryRecnos = new HashMap<>();
-        inventoryMaps = new LinkedHashMap<>();
-        saleAnalytics = null;
-        inventoryData = new File("src/resources/inventory.json");
-        try {
-            if(debug) System.out.println("Inventory() : Creating new File!");
-            inventoryData.createNewFile();
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-        if(debug) System.out.println("src/resources/inventory.json exists : " + inventoryData.exists());
-        adminView = null;
+        if(debug) System.out.println("Called Inventory @JsonCreator!");
+
+        this.fieldMap = new LinkedHashMap<>();
+        for(int i = 0; i < itemFieldNames.size(); i++)
+            fieldMap.put(itemFieldNames.get(i), i);
+
+       if(debug) System.out.println("itemFieldNames from Json = " + getItemFieldNames());
+
+        this.database = new File(inventoryJsonPath);
+
+        this.inventory = new HashMap<>();
+        for(int i = 0; i < items.size(); i++)
+            fieldMap.put(items.get(i).getSku(), i);
+
+        this.inventoryMaps = new LinkedHashMap<>();
+        initInventoryMaps(this.inventoryMaps);
+        // TODO : Populate inventoryMaps
+
+        this.adminView = null;
     }
 
-    public Inventory(File inventoryData) throws IOException {
-        this();
-        final boolean debug = true;
+    public Inventory(String jsonPath) {
+        if(!IMSUtilities.isJson(jsonPath)) throw new IllegalArgumentException("Cannot pass non-Json file path to constructor.");
 
-        if(!InventorySerializer.isJson(inventoryData)) throw new IllegalArgumentException("Passed in inventoryData is not a json file.");
+        this.database = IMSUtilities.createResource(jsonPath);
 
-        if(!inventoryData.equals(this.inventoryData)) {
-            if(debug) System.out.println("Inventory(File) : Creating new File!");
-            this.inventoryData = inventoryData;
+        this.fieldMap = new LinkedHashMap<>();
+        initItemFieldNames(fieldMap);
+        this.inventory = new HashMap<>();
+        this.inventoryMaps = new LinkedHashMap<>();
+        initInventoryMaps(this.inventoryMaps);
+
+        this.adminView = null;
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        try {
+            mapper.writeValue(database, this);
+
+            ObjectNode node = (ObjectNode) mapper.readTree(database);
+            node.putArray("items");
+            mapper.writeValue(database, node);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-        ObjectMapper jsonMapper = new ObjectMapper();
-        List<JsonNode> inventoryItemNodes = jsonMapper.readValue(inventoryData,
-                new TypeReference<LinkedList<JsonNode>>() {});
+//        JsonNode head = mapper.readTree(database);
 
-        /// Defined first for output purposes
-        inventoryMaps.put("sku", new TreeMap<>());
+//        List<JsonNode> inventoryItemNodes = mapper.readValue(database,
+//                new TypeReference<LinkedList<JsonNode>>() {});
+//
+//        /// Defined first for output purposes
+//        inventoryMaps.put("sku", new TreeMap<>());
 
         /*
             For every json object defined in the json file contained within inventoryData,
@@ -166,61 +197,92 @@ public class Inventory implements InventoryAccessor {
             field value, and--to allow different InventoryItems with the same field value--,
             the value will be a set of all InventoryItems with an equivalent key.
          */
-        for(int i = 0; i < inventoryItemNodes.size(); i++) {
-            JsonNode object = inventoryItemNodes.get(i);
+//        for(int i = 0; i < inventoryItemNodes.size(); i++) {
+//            JsonNode object = inventoryItemNodes.get(i);
+//
+//            InventoryItem objectAsInventoryItem = jsonMapper.convertValue(object, InventoryItem.class);
+//            if(debug) System.out.println("Reading item: " + objectAsInventoryItem.getName());
+//
+//            if(false) restock(objectAsInventoryItem); ///< For debugging and testing purposes only
+//
+//            Iterator<String> objectFields = object.fieldNames();
+//            while(objectFields.hasNext()) {
+//                String fieldName = objectFields.next();
+//
+//                inventoryMaps.computeIfAbsent(fieldName, fName -> new TreeMap<>()); ///< Can be done outside the loop to prevent unnecessary method call
+//                Object fieldValue = switch(object.get(fieldName).getNodeType()) {
+//                    case NUMBER -> object.get(fieldName).asInt();
+//                    case BOOLEAN -> object.get(fieldName).asBoolean();
+//                    default -> object.get(fieldName).asText();
+//                };
+//
+//                inventoryMaps.get(fieldName).compute(fieldValue, (k, v) -> {
+//                    if(v == null)
+//                        v = new HashSet<>();
+//
+//                    v.add(objectAsInventoryItem);
+//                    return v;
+//                });
+//            }
+//        }
+//
+//        /// Uses single pre-existing TreeMap with name of permanent field to manually populate sku TreeMap
+//        inventoryMaps.get("name").forEach((fValue, itemSet) -> {
+//            itemSet.forEach((inventoryItem -> {
+//
+//                if(inventoryMaps.get("sku").containsKey(inventoryItem.getSku()))
+//                    throw new RuntimeException("InventoryItem with duplicate sku!\n " +
+//                            "Current - " + inventoryMaps.get("sku").get(inventoryItem.getSku()).toString() + "\n Duplicate - " + inventoryItem);
+//
+//                inventoryMaps.get("sku").compute(inventoryItem.getSku(), (itemSku, skuItemSet) -> {
+//                    if(skuItemSet == null)
+//                        skuItemSet = new HashSet<>();
+//                    skuItemSet.add(inventoryItem);
+//                    return skuItemSet;
+//                });
+//            }));
+//        });
+//
+//        updateAdminView("sku");
+    }
 
-            InventoryItem objectAsInventoryItem = jsonMapper.convertValue(object, InventoryItem.class);
-            if(debug) System.out.println("Reading item: " + objectAsInventoryItem.getName());
-            inventoryRecnos.put(objectAsInventoryItem.getSku(), i);
+    @JsonGetter("inventoryJsonPath")
+    public String getJsonPath() {
+        return database.getPath();
+    }
 
-            if(false) restock(objectAsInventoryItem); ///< For debugging and testing purposes only
+    @JsonGetter("size")
+    public int size() {
+        return inventory.size();
+    }
 
-            Iterator<String> objectFields = object.fieldNames();
-            while(objectFields.hasNext()) {
-                String fieldName = objectFields.next();
+    @JsonGetter("itemFieldNames")
+    public List<String> getItemFieldNames() {
+        return List.copyOf(fieldMap.keySet());
+    }
 
-                inventoryMaps.computeIfAbsent(fieldName, fName -> new TreeMap<>()); ///< Can be done outside the loop to prevent unnecessary method call
-                Object fieldValue = switch(object.get(fieldName).getNodeType()) {
-                    case NUMBER -> object.get(fieldName).asInt();
-                    case BOOLEAN -> object.get(fieldName).asBoolean();
-                    default -> object.get(fieldName).asText();
-                };
-
-                inventoryMaps.get(fieldName).compute(fieldValue, (k, v) -> {
-                    if(v == null)
-                        v = new HashSet<>();
-
-                    v.add(objectAsInventoryItem);
-                    return v;
-                });
-            }
+    public boolean addItem(String... itemValues) {
+        int recno = -1;
+        try {
+            recno = IMSUtilities.writeItem(database, itemValues);
+        } catch(IOException e) {
+            e.printStackTrace();
         }
+        return recno >= 0;
+    }
 
-        /// Uses single pre-existing TreeMap with name of permanent field to manually populate sku TreeMap
-        inventoryMaps.get("name").forEach((fValue, itemSet) -> {
-            itemSet.forEach((inventoryItem -> {
-
-                if(inventoryMaps.get("sku").containsKey(inventoryItem.getSku()))
-                    throw new RuntimeException("InventoryItem with duplicate sku!\n " +
-                            "Current - " + inventoryMaps.get("sku").get(inventoryItem.getSku()).toString() + "\n Duplicate - " + inventoryItem);
-
-                inventoryMaps.get("sku").compute(inventoryItem.getSku(), (itemSku, skuItemSet) -> {
-                    if(skuItemSet == null)
-                        skuItemSet = new HashSet<>();
-                    skuItemSet.add(inventoryItem);
-                    return skuItemSet;
-                });
-            }));
-        });
-
-        updateAdminView("sku");
+    private InventoryItem retrieve(int recno) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode item = (ObjectNode) mapper.readTree(database).get("items").get(recno);
+        return mapper.convertValue(item, InventoryItem.class);
     }
 
     @Override
     public InventoryItemUpdater get(String sku) {
-        InventoryItem item = inventory.get(sku);
-        if(item == null) return null;
-        return new InventoryItemProxy(item);
+//        InventoryItem item = inventory.get(sku);
+//        if(item == null) return null;
+//        return new InventoryItemProxy(item);
+        return null;
     }
 
     @Override
@@ -320,37 +382,67 @@ public class Inventory implements InventoryAccessor {
     }
 
     public void restock() {
-        inventory.forEach((k, v) -> {
-            if(v.hasAutomaticRestocks())
-                v.placeInventoryOrder();
-        });
+//        inventory.forEach((k, v) -> {
+//                restock(v);
+//        });
     }
 
-    private void restock(InventoryItem item) {
+//    private void restock(InventoryItem item) {
+//        final boolean debug = true;
+//        if(debug) System.out.println("Inventory.restock() : Restocking " + item.getName() + "...");
+//        item.placeInventoryOrder();
+//
+//        /// Update inventory.json
+//        try {
+//            ObjectMapper mapper = new ObjectMapper();
+//
+//            ArrayNode inventoryNode = mapper.createArrayNode().addAll(
+//                    Collections.unmodifiableCollection(mapper.readValue(this.inventoryData, new TypeReference<LinkedHashSet<JsonNode>>() {}))
+//            );
+//
+//            ObjectNode itemNode = (ObjectNode) inventoryNode.get(inventoryRecnos.get(item.getSku()));
+//
+//            if(itemNode == null) throw new NullPointerException("Unable to restock InventoryItem with unknown sku(" + item + ")");
+//            itemNode.replace("qtyTotal", mapper.valueToTree(item.getQtyTotal()));
+//            System.out.println(inventoryNode);
+//
+//            JsonGenerator inventoryGenerator = mapper.getFactory().createGenerator(this.inventoryData, JsonEncoding.UTF8);
+//            inventoryGenerator.useDefaultPrettyPrinter();
+//            inventoryNode.serialize(inventoryGenerator,  mapper.getSerializerProviderInstance());
+//            inventoryGenerator.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    private static Map<String, Integer> initItemFieldNames(Map<String, Integer> fieldMap) {
+        if(fieldMap == null) return null;
+        /*
+            Source: https://stackoverflow.com/questions/45834654/how-to-get-the-list-of-properties-of-a-class-as-jackson-views-it/45839099#45839099
+            Used to retrieve the Json Properties of the InventoryItem class to create a map and
+            Json ArrayNode of them for easy accessing and output.
+         */
+        ObjectMapper mapper = new ObjectMapper();
+        // Construct a Jackson JavaType for your class
+        JavaType javaType = mapper.getTypeFactory().constructType(InventoryItem.class);
+        // Introspect the given type
+        BeanDescription beanDescription = mapper.getSerializationConfig().introspect(javaType);
+        // Find properties
+        List<BeanPropertyDefinition> properties = beanDescription.findProperties();
+
+        for(int i = 0; i < properties.size(); i++)
+            fieldMap.put(properties.get(i).getName(), i);
+        return fieldMap;
+    }
+
+    private void initInventoryMaps(Map<String, NavigableMap<Object, Set<Integer>>> inventoryMaps) {
         final boolean debug = true;
-        if(debug) System.out.println("Inventory.restock() : Restocking " + item.getName() + "...");
-        item.placeInventoryOrder();
-
-        /// Update inventory.json
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-
-            ArrayNode inventoryNode = mapper.createArrayNode().addAll(
-                    Collections.unmodifiableCollection(mapper.readValue(this.inventoryData, new TypeReference<LinkedHashSet<JsonNode>>() {}))
-            );
-
-            ObjectNode itemNode = (ObjectNode) inventoryNode.get(inventoryRecnos.get(item.getSku()));
-
-            if(itemNode == null) throw new NullPointerException("Unable to restock InventoryItem with unknown sku(" + item + ")");
-            itemNode.replace("qtyTotal", mapper.valueToTree(item.getQtyTotal()));
-            System.out.println(inventoryNode);
-
-            JsonGenerator inventoryGenerator = mapper.getFactory().createGenerator(this.inventoryData, JsonEncoding.UTF8);
-            inventoryGenerator.useDefaultPrettyPrinter();
-            inventoryNode.serialize(inventoryGenerator,  mapper.getSerializerProviderInstance());
-            inventoryGenerator.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if(this.fieldMap.isEmpty()) {
+            if(debug) System.out.println("initInventoryMaps() : Calling initItemFieldNames()!");
+            initItemFieldNames(this.fieldMap);
         }
+
+        fieldMap.forEach((fieldName, fieldIndex) -> inventoryMaps.put(fieldName, new TreeMap<>()));
     }
+
 }

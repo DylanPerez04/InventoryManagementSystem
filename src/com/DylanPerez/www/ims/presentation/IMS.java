@@ -3,8 +3,11 @@ package com.DylanPerez.www.ims.presentation;
 import com.DylanPerez.www.ims.application.inventory.Inventory;
 import com.DylanPerez.www.ims.application.inventory.proxy.InventoryProxy;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemAccessor;
+import com.DylanPerez.www.ims.application.util.IMSUtilities;
 import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.DylanPerez.www.ims.service.simulate.Simulatable;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,10 +27,10 @@ import java.util.Scanner;
  * @version 1.0
  * @since 21.0.3
  */
+@JsonIgnoreProperties(ignoreUnknown = true) ///<
 public class IMS implements Simulatable, Runnable {
 
-    // TODO : Make inventory final and have a method to update/merge Inventory with new database (.json)
-    private final Inventory inventory; // HashMap<SKU string, InventoryItem>
+    private static String defaultInventoryJsonPath = "src/resources/inventory.json";
 
     /**
      * A field that offers a means of providing a unique identifier to all
@@ -43,14 +46,23 @@ public class IMS implements Simulatable, Runnable {
      */
     private Map<String, Cart> carts; // HashMap<type, HashMap<cartId, cart>>
 
-    public IMS() {
-        inventory = new Inventory();
-        carts = new HashMap<>();
-    }
+    // TODO : Make inventory final and have a method to update/merge Inventory with new database (.json)
+    private Inventory inventory; // HashMap<SKU string, InventoryItem>
 
-    public IMS(File database) throws IOException {
-        inventory = new Inventory(database);
-        carts = new HashMap<>();
+    public IMS() {
+        final boolean debug = true;
+
+        this.carts = new HashMap<>();
+
+        ObjectMapper mapper = new ObjectMapper();
+        File inventoryJson = new File(defaultInventoryJsonPath);
+
+        if(debug) IMSUtilities.clear(inventoryJson);
+
+        try {
+            this.inventory = mapper.readValue(inventoryJson, Inventory.class);
+        } catch (IOException e) {}
+        this.inventory = new Inventory(defaultInventoryJsonPath);
     }
 
     private InventoryItemAccessor search(String sku) {
@@ -139,7 +151,6 @@ public class IMS implements Simulatable, Runnable {
         return true;
     }
 
-
     private void customizeOutput(Scanner scanner) {
         String buffer;
         String fieldName = "sku";
@@ -186,7 +197,37 @@ public class IMS implements Simulatable, Runnable {
 //    }
 
     private void updateInventory(Scanner scanner) {
+        final String[] options = {
+                "Add Inventory Item",
+                "Remove Inventory Item",
+                "Update Inventory Item"
+        };
 
+        String buffer;
+        boolean endProgram = false;
+
+        while(!endProgram) {
+            System.out.println("-------------------------");
+            for(int i = 0; i < options.length; i++) {
+                System.out.println((i + 1) + ". " + options[i]);
+            }
+            System.out.println("-------------------------");
+
+            System.out.print("> ");
+            buffer = scanner.nextLine();
+
+            switch (Integer.parseInt(buffer)) {
+                case 1 -> {
+                    final String[] itemData = new String[inventory.getItemFieldNames().size()];
+//                    for(int i = 0; i < itemData.length; i++) {
+//                        System.out.print("[?] " + inventory.itemFieldNames().get(i) + " : ");
+//                        itemData[i] = scanner.nextLine();
+//                    }
+                    inventory.addItem(itemData);
+                }
+                default -> endProgram = true;
+            }
+        }
     }
 
     private void viewAnalytics(Scanner scanner) {
@@ -208,7 +249,7 @@ public class IMS implements Simulatable, Runnable {
         boolean endProgram = false;
 
         while(!endProgram) {
-            inventory.outputAdminView();
+            if(inventory != null) inventory.outputAdminView();
             System.out.println("-------------------------");
             for(int i = 0; i < options.length; i++) {
                 System.out.println((i + 1) + ". " + options[i]);
@@ -221,7 +262,7 @@ public class IMS implements Simulatable, Runnable {
             switch (Integer.parseInt(buffer)) {
                 case 1 -> customizeOutput(scanner);
 //                case 2 -> searchForItem(scanner);
-//                case 3 -> updateInventory(scanner);
+                case 3 -> updateInventory(scanner);
 //                case 4 -> viewAnalytics(scanner);
                 default -> endProgram = true;
             }
@@ -231,5 +272,4 @@ public class IMS implements Simulatable, Runnable {
     /*
      * manageStoreCarts();
      */
-
 }

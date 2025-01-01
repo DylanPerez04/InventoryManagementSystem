@@ -1,0 +1,13 @@
+* Implement read and write methods for InventoryItem to serialize and deserialize an
+InventoryItem to and from a passed in File object (and record number)
+* Add private field to InventoryItem to recognize which record number from the
+Json array of InventoryItems has been read or has been written
+* Add method to get the record number from InventoryItem
+* Implement method in IMSSerializer to read_item and write_item (mimic SQL final project)
+* Implement methods to manipulate and view items tracked by IMS
+
+---- Dilemma 12/27/2024
+i.      A decision must be made to either use reflection/read BeanPropertyDefinitions via Jackson or
+create an enum object that contains all the fields of the InventoryItem object. This is necessary
+for the purposes of displaying a field banner when printing out all the inventory items, in addition to
+converting a string value into a recognizable field name of InventoryItem.

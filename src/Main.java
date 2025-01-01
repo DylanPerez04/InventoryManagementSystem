@@ -2,7 +2,6 @@
 
 import com.DylanPerez.www.ims.presentation.IMS;
 
-import java.io.File;
 import java.io.IOException;
 
 public class Main {
@@ -40,7 +39,8 @@ public class Main {
     }
 
     private static boolean testAdmin() throws IOException {
-        File inventoryData = new File("src/resources/inventory.json");
+        final boolean debug = false;
+
         IMS ims = new IMS();
         ims.run();
         return true;

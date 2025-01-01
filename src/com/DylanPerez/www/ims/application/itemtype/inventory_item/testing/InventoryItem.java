@@ -3,6 +3,7 @@ package com.DylanPerez.www.ims.application.itemtype.inventory_item.testing;
 import com.DylanPerez.www.ims.application.itemtype.Product;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemUpdater;
 import com.DylanPerez.www.ims.application.util.Category;
+import com.DylanPerez.www.ims.presentation.util.Cart;
 
 public class InventoryItem extends Product implements InventoryItemUpdater {
 
@@ -16,7 +17,7 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
      * The quantity of this <code>InventoryItem</code> currently reserved
      * within online carts.
      *
-     * @see com.DylanPerez.www.ims.presentation.util.Cart
+     * @see Cart
      */
     private int qtyReserved;
 

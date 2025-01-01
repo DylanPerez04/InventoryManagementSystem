@@ -1,0 +1,6 @@
+{
+  "itemFieldNames" : [ "sku", "name", "manufacturer", "category", "cost", "price", "qtyTotal", "qtyReserved", "qtyLow", "qtyReorder", "forSale", "autoRestock" ],
+  "size" : 0,
+  "inventoryJsonPath" : "src\\resources\\inventory.json",
+  "items" : [ ]
+}

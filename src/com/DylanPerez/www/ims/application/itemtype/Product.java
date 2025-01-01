@@ -1,17 +1,12 @@
 package com.DylanPerez.www.ims.application.itemtype;
 
-// TODO: Have products be pulled and listed from a database (file) to maintain changes.
-
-import com.DylanPerez.www.ims.application.itemtype.inventory_item.InventoryItem;
 import com.DylanPerez.www.ims.application.util.Category;
-
-import java.util.Map;
 
 public abstract class Product {
 
     // TODO : Add setter methods; check if there is already a product with a particular sku; update the way I make SKU
 
-    private static final char[] invalid_chars = {'0', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '=', '\\', '/', '.', ',', '`', '~', '|', '?', '>', '<', ':', ';', '}', '{', '[', ']', '\'', '\"'};
+    private static final char[] INVALID_CHARS = {'0', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '=', '\\', '/', '.', ',', '`', '~', '|', '?', '>', '<', ':', ';', '}', '{', '[', ']', '\'', '\"'};
 
     /**
      * 7-10 characters long. SKU used specifically for sale analytics.
@@ -33,15 +28,20 @@ public abstract class Product {
      */
     private double price;
 
-    public Product(String name, String manufacturer, Category category, double cost, double price) {
+    public Product(String sku, String name, String manufacturer,
+                   Category category, double cost, double price) {
         this.name = name;
         this.manufacturer = manufacturer;
         this.category = category;
-
         this.cost = cost;
         this.price = price;
 
-        this.sku = generateSku();
+        if(sku == null || sku.isEmpty()) this.sku = generateSku();
+        else this.sku = sku;
+    }
+
+    public Product(String name, String manufacturer, Category category, double cost, double price) {
+        this(null, name, manufacturer, category, cost, price);
     }
 
     private String generateSku() {
@@ -79,13 +79,13 @@ public abstract class Product {
      * @param newSku A 7-10 character long sku.
      * @return Whether the sku has been successfully updated.
      */
-    public boolean updateSku(String newSku, Map<String, InventoryItem> inventory) {
+    public boolean setSku(String newSku) {
         if(newSku.length() < 7 || newSku.length() > 10) return false;
 
-        for(char c : invalid_chars)
+        for(char c : INVALID_CHARS)
             if(newSku.contains(String.valueOf(c))) return false;
 
-        if(inventory.get(newSku) == null) return false;
+        // TODO : Move check for duplicate sku to Inventory
 
         this.sku = newSku;
         return true;
@@ -103,29 +103,41 @@ public abstract class Product {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getManufacturer() {
         return manufacturer;
+    }
+
+    public void setManufacturer(String manufacturer) {
+        this.manufacturer = manufacturer;
     }
 
     public Category getCategory() {
         return category;
     }
 
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+
     public double getPrice() {
         return price;
     }
 
-    protected boolean setPrice(double price) {
+    public boolean setPrice(double price) {
         if(price < 0) return false;
         this.price = price;
         return true;
     }
 
-    protected double getCost() {
+    public double getCost() {
         return cost;
     }
 
-    protected boolean setCost(double cost) {
+    public boolean setCost(double cost) {
         if(cost < 0) return false;
         this.cost = cost;
         return true;

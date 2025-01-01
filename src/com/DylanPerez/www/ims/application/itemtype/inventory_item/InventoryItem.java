@@ -3,10 +3,24 @@ package com.DylanPerez.www.ims.application.itemtype.inventory_item;
 import com.DylanPerez.www.ims.application.itemtype.Product;
 import com.DylanPerez.www.ims.application.itemtype.inventory_item.interfaces.InventoryItemUpdater;
 import com.DylanPerez.www.ims.application.util.Category;
+import com.DylanPerez.www.ims.presentation.util.Cart;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.RuntimeJsonMappingException;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import java.io.File;
+import java.io.IOException;
+
+@JsonPropertyOrder({"sku", "name", "manufacturer", "category", "cost", "price", "qtyTotal", "qtyReserved", "qtyLow", "qtyReorder", "forSale", "autoRestock"})
 public class InventoryItem extends Product implements InventoryItemUpdater {
+
+    private static int fooID = 0;
 
     /**
      * The quantity of this <code>InventoryItem</code> currently in the
@@ -18,7 +32,7 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
      * The quantity of this <code>InventoryItem</code> currently reserved
      * within online carts.
      *
-     * @see com.DylanPerez.www.ims.presentation.util.Cart
+     * @see Cart
      */
     private int qtyReserved;
 
@@ -52,23 +66,24 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
     private boolean autoRestock;
 
     public InventoryItem(InventoryItem toCopy) {
-        this(toCopy.getName(), toCopy.getManufacturer(), toCopy.getCategory(),
+        this(toCopy.getSku(), toCopy.getName(), toCopy.getManufacturer(), toCopy.getCategory(),
                 toCopy.getCost(), toCopy.getPrice(), toCopy.qtyTotal, toCopy.qtyReserved, toCopy.qtyLow, toCopy.qtyReorder,
                 toCopy.forSale, toCopy.autoRestock);
     }
 
     public InventoryItem(String name, String manufacturer, Category category,
                           double cost, double price) {
-        this(name, manufacturer, category, cost, price,0, 0, 0, 0, false, false);
+        this(null, name, manufacturer, category, cost, price,0, 0, 0, 0, false, false);
     }
 
     public InventoryItem(String name, String manufacturer, Category category,
                          double cost, double price, int qtyTotal, int qtyLow, int qtyReorder) {
-        this(name, manufacturer, category, cost, price, qtyTotal, 0, qtyLow, qtyReorder, true, false);
+        this(null, name, manufacturer, category, cost, price, qtyTotal, 0, qtyLow, qtyReorder, true, false);
     }
 
     @JsonCreator
     public InventoryItem(
+            @JsonProperty("sku") String sku,
             @JsonProperty("name") String name,
             @JsonProperty("manufacturer") String manufacturer,
             @JsonProperty("category") Category category,
@@ -80,13 +95,66 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
             @JsonProperty("qtyReorder") int qtyReorder,
             @JsonProperty("forSale") boolean forSale,
             @JsonProperty("autoRestock") boolean autoRestock) {
-        super(name, manufacturer, category, cost, price);
+        super(sku, name, manufacturer, category, cost, price);
         this.qtyTotal = qtyTotal;
         this.qtyReserved = 0;
         this.qtyLow = qtyLow;
         this.qtyReorder = qtyReorder;
         this.forSale = forSale;
         this.autoRestock = autoRestock;
+    }
+
+    public int write(File file) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        TreeNode head = mapper.readTree(file);
+
+        ArrayNode items = (ArrayNode) head.get("items");
+        if(items == null) throw new RuntimeException("Missing items Json Array in " + file.getName() + ".");
+        int recno = items.size();
+        items.addPOJO(this);
+
+        mapper.writeValue(file, head);
+        return recno;
+    }
+
+    public void read(File file, int recno) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        TreeNode head = mapper.readTree(file);
+
+        ArrayNode items = (ArrayNode) head.get("items");
+        if(items.isMissingNode()) throw new RuntimeException("Missing items Json Array in " + file.getName() + ".");
+        InventoryItem item = mapper.convertValue(items.get(recno), InventoryItem.class);
+
+        this.setName(item.getName());
+        this.setManufacturer(item.getManufacturer());
+        this.setCategory(item.getCategory());
+        this.setPrice(item.getPrice());
+        this.setCost(item.getCost());
+        this.restoreSku();
+
+        this.setQtyTotal(item.getQtyTotal());
+        this.setQtyReserved(item.getQtyReserved());
+        this.setQtyLow(item.getQtyLow());
+        this.setQtyReorder(item.getQtyReorder());
+        this.setForSale(item.isForSale());
+        this.setAutoRestock(item.hasAutoRestocks());
+
+        if(this.hashCode() != item.hashCode()) {
+            throw new RuntimeException("this.hashCode() = " + this.hashCode() + "\nitem.hashCode() = " + item.hashCode());
+        }
+    }
+
+    public static InventoryItem foo() {
+        fooID++;
+        return new InventoryItem(null, "fooItem" + fooID, "fooManufacturer" + fooID,
+                Category.values()[(int) (Math.random() * Category.values().length)],
+                Math.random() * 100 + 1, Math.random() * 200 + 1,
+                0, 0, 0, 0,
+                false, false);
     }
 
 //    public static Comparator<InventoryItem> getFieldComparator(String fieldName) {
@@ -171,14 +239,6 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
         return quantity;
     }
 
-    public boolean setPrice(double price) {
-        return super.setPrice(price);
-    }
-
-    public boolean setCost(double cost) {
-        return super.setCost(cost);
-    }
-
     @Override
     public int getQtyTotal() {
         return qtyTotal;
@@ -225,11 +285,12 @@ public class InventoryItem extends Product implements InventoryItemUpdater {
         this.forSale = forSale;
     }
 
-    public boolean hasAutomaticRestocks() {
+    @JsonGetter("autoRestock")
+    public boolean hasAutoRestocks() {
         return autoRestock;
     }
 
-    public void setAutomaticallyRestock(boolean autoRestock) {
+    public void setAutoRestock(boolean autoRestock) {
         this.autoRestock = autoRestock;
     }
 
