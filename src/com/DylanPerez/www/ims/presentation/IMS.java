@@ -50,7 +50,7 @@ public class IMS implements Simulatable, Runnable {
     private Inventory inventory; // HashMap<SKU string, InventoryItem>
 
     public IMS() {
-        final boolean debug = true;
+        final boolean debug = false;
 
         this.carts = new HashMap<>();
 
@@ -62,6 +62,7 @@ public class IMS implements Simulatable, Runnable {
         try {
             this.inventory = mapper.readValue(inventoryJson, Inventory.class);
         } catch (IOException e) {
+            System.out.println("Deserializing inventoryJson failed! Creating new Inventory object.");
             this.inventory = new Inventory(defaultInventoryJsonPath);
         }
     }

@@ -100,8 +100,6 @@ public class Inventory implements InventoryAccessor {
 
     private Map<String, Integer> fieldMap;
 
-//    private final Map<String, Integer> inventoryRecnos;
-
     private final Map<String, NavigableMap<Object, Set<Integer>>> inventoryMaps; ///< Map<field name, NMap<field value, Set<Json array indices>>
 
     /**
@@ -111,8 +109,7 @@ public class Inventory implements InventoryAccessor {
      * This <code>Set</code> is specifically declared as a means to quickly output all items
      * within <code>inventory</code>.
      */
-    private Set<Integer> adminView;
-
+    private Set<InventoryItem> adminView;
 
     /**
      * An Analytics object that records sales data made via this IMS object.
@@ -135,29 +132,39 @@ public class Inventory implements InventoryAccessor {
 
         if(debug) System.out.println("Called Inventory @JsonCreator!");
 
+        this.database = new File(inventoryJsonPath);
+
         this.fieldMap = new LinkedHashMap<>();
         for(int i = 0; i < itemFieldNames.size(); i++)
             fieldMap.put(itemFieldNames.get(i), i);
 
        if(debug) System.out.println("itemFieldNames from Json = " + getItemFieldNames());
 
-        this.database = new File(inventoryJsonPath);
 
         this.inventory = new HashMap<>();
-        for(int i = 0; i < items.size(); i++)
-            fieldMap.put(items.get(i).getSku(), i);
 
         this.inventoryMaps = new LinkedHashMap<>();
         initInventoryMaps(this.inventoryMaps);
-        // TODO : Populate inventoryMaps
 
-        this.adminView = null;
+        ObjectMapper mapper = new ObjectMapper();
+        for(int i = 0; i < items.size(); i++) {
+            String itemSku = items.get(i).getSku();
+            inventory.put(itemSku, i);
+            try {
+                addToInventoryMaps(mapper, i);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        updateAdminView(null);
     }
 
     public Inventory(String jsonPath) {
+        final boolean debug = true;
         if(!IMSUtilities.isJson(jsonPath)) throw new IllegalArgumentException("Cannot pass non-Json file path to constructor.");
 
-        System.out.println("Calling Inventory(String jsonPath) constructor!");
+        if(debug) System.out.println("Calling Inventory(String jsonPath) constructor!");
 
         this.database = IMSUtilities.createResource(jsonPath);
 
@@ -173,6 +180,27 @@ public class Inventory implements InventoryAccessor {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         try {
+            /*
+                If IMS could not properly deserialize inventory.json, rather than
+                write over what was previously there, we will create a backup .json
+                file in the default src/resources directory prior to writing over it with a
+                default serialization of a new Inventory instance.
+
+                This is to prevent a potentially massive loss of data in the event an unintended
+                change is made to the primary inventory.json object.
+             */
+            if(!IMSUtilities.isEmpty(database)) {
+                String backupId;
+                File file = new File(database.getPath());
+                while(file.exists()) {
+                    backupId = "backup_" + Math.abs(new Random().nextLong());
+                    file = new File("src/resources/backups/" + backupId + ".json");
+                }
+                boolean fileCreated = file.createNewFile();
+                if(!fileCreated) throw new RuntimeException("Unable to read existing inventory.json; could not create backup file.");
+                mapper.writeValue(file, mapper.readTree(database));
+            }
+
             mapper.writeValue(database, this);
 
             ObjectNode node = (ObjectNode) mapper.readTree(database);
@@ -181,6 +209,8 @@ public class Inventory implements InventoryAccessor {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        updateAdminView(null);
 
 //        JsonNode head = mapper.readTree(database);
 
@@ -316,10 +346,18 @@ public class Inventory implements InventoryAccessor {
      * </p>
      */
     public void updateAdminView(String fieldName) {
-        if(fieldName == null || fieldName.isEmpty()) return;
+        if(fieldName == null || fieldName.isEmpty()) fieldName = "sku";
 
         adminView = new LinkedHashSet<>();
-        inventoryMaps.get(fieldName).values().forEach(adminView::addAll);
+            inventoryMaps.get(fieldName).values().forEach(recnos -> {
+                    recnos.forEach(recno -> {
+                        try {
+                            adminView.add(IMSUtilities.readItem(database, recno));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+            });
     }
 
 //    public void updateAdminView(List<InventoryItem.Comparator> comparators) {

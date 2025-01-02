@@ -2,5 +2,31 @@
   "itemFieldNames" : [ "sku", "name", "manufacturer", "category", "cost", "price", "qtyTotal", "qtyReserved", "qtyLow", "qtyReorder", "forSale", "autoRestock" ],
   "size" : 0,
   "inventoryJsonPath" : "src\\resources\\inventory.json",
-  "items" : [ ]
+  "items" : [ {
+    "sku" : "Z3FOOFOOM1",
+    "name" : "fooItem1",
+    "manufacturer" : "fooManufacturer1",
+    "category" : "SPECIALTY",
+    "cost" : 99.48191024033224,
+    "price" : 48.98610220176316,
+    "qtyTotal" : 0,
+    "qtyReserved" : 0,
+    "qtyLow" : 0,
+    "qtyReorder" : 0,
+    "forSale" : false,
+    "autoRestock" : false
+  }, {
+    "sku" : "Z1FOOFOOM2",
+    "name" : "fooItem2",
+    "manufacturer" : "fooManufacturer2",
+    "category" : "CONVENIENCE",
+    "cost" : 17.830597674313218,
+    "price" : 53.073623599894006,
+    "qtyTotal" : 0,
+    "qtyReserved" : 0,
+    "qtyLow" : 0,
+    "qtyReorder" : 0,
+    "forSale" : false,
+    "autoRestock" : false
+  } ]
 }
